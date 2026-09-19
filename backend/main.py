@@ -29,6 +29,7 @@ class RiskLevel(str, Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
+    UNASSESSED = "UNASSESSED"
 
 
 class Transaction(BaseModel):
@@ -80,7 +81,7 @@ class EntityDetailResponse(BaseModel):
 
 class SearchResultItem(BaseModel):
     entity_id: str
-    risk_score: float
+    risk_score: Optional[float] = None
     risk_level: RiskLevel
 
 
@@ -142,8 +143,8 @@ def search_entities(
         results.append(
             SearchResultItem(
                 entity_id=f"tx_{row['txId']}",
-                risk_score=100.0 if suspicious else 0.0,
-                risk_level=RiskLevel.HIGH if suspicious else RiskLevel.LOW,
+                risk_score=None,
+                risk_level=RiskLevel.UNASSESSED,
             )
         )
     return results
