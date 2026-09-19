@@ -16,7 +16,7 @@ from schemas import (
     Transaction,
 )
 
-DATA_PATH = Path("data/raw/elliptic_txs_classes.csv")
+DATA_PATH = Path("data/elliptic_txs_classes.csv")
 
 app = FastAPI(
     title="Financial Anomaly & Entity Investigation API",
@@ -63,7 +63,7 @@ def dataset_summary():
     if labels.empty:
         return {
             "loaded": False,
-            "message": "Place elliptic_txs_classes.csv in data/raw/ locally.",
+            "message": "Place elliptic_txs_classes.csv in data/locally.",
         }
 
     counts = labels["class"].value_counts().to_dict()
