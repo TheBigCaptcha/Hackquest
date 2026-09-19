@@ -1,3 +1,10 @@
+"""Temporary demo fixtures for backend/API development.
+
+These values are synthetic and MUST NOT be treated as real analytical results.
+Replace them with outputs from the ML, graph, clustering, risk, and
+network-correlation pipeline once those modules are implemented.
+"""
+
 MOCK_ENTITIES = {
     "cluster_123": {
         "entity_id": "cluster_123",
@@ -6,14 +13,14 @@ MOCK_ENTITIES = {
         "risk_level": "HIGH",
         "relevant_indicators": [
             "Rapid succession transfers (< 5 mins)",
-            "High connectivity to previously flagged mule account",
-            "Unusual off-hours transaction velocity"
+            "High connectivity to previously flagged entity",
+            "Unusual off-hours transaction velocity",
         ],
         "metrics": {
             "total_transactions": 142,
             "suspicious_transactions": 19,
-            "connection_count": 8
-        }
+            "connection_count": 8,
+        },
     }
 }
 
@@ -27,7 +34,7 @@ MOCK_TRANSACTIONS = {
             "amount": 12500.00,
             "timestamp": "2026-09-15T14:32:00Z",
             "is_suspicious": True,
-            "flag_reason": "Structured deposit pattern"
+            "flag_reason": "Structured deposit pattern",
         },
         {
             "transaction_id": "tx_9002",
@@ -36,7 +43,7 @@ MOCK_TRANSACTIONS = {
             "amount": 12450.00,
             "timestamp": "2026-09-15T14:34:10Z",
             "is_suspicious": True,
-            "flag_reason": "Rapid pass-through funds"
+            "flag_reason": "Rapid pass-through funds",
         },
         {
             "transaction_id": "tx_9003",
@@ -45,6 +52,55 @@ MOCK_TRANSACTIONS = {
             "amount": 150.00,
             "timestamp": "2026-09-16T09:10:00Z",
             "is_suspicious": False,
-            "flag_reason": None
-        }
+            "flag_reason": None,
+        },
     ]
+}
+
+
+MOCK_NETWORKS = {
+    "cluster_123": {
+        "nodes": [
+            {
+                "id": "acc_A",
+                "label": "Account A",
+                "node_type": "origin",
+            },
+            {
+                "id": "acc_B",
+                "label": "Account B",
+                "node_type": "intermediate",
+            },
+            {
+                "id": "acc_C",
+                "label": "Account C",
+                "node_type": "connected",
+            },
+            {
+                "id": "acc_D",
+                "label": "Account D",
+                "node_type": "account",
+            },
+        ],
+        "edges": [
+            {
+                "source": "acc_A",
+                "target": "acc_B",
+                "amount": 12500.00,
+                "weight": 0.9,
+            },
+            {
+                "source": "acc_B",
+                "target": "acc_C",
+                "amount": 12450.00,
+                "weight": 0.95,
+            },
+            {
+                "source": "acc_A",
+                "target": "acc_D",
+                "amount": 150.00,
+                "weight": 0.1,
+            },
+        ],
+    }
+}
