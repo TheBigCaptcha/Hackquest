@@ -123,7 +123,28 @@ export default function App() {
             {detailError && (
               <p style={{ color: 'red' }}>Error: {detailError}</p>
             )}
-            {detail && <pre>{JSON.stringify(detail, null, 2)}</pre>}
+            {detail && (
+  <div style={{ lineHeight: 1.9 }}>
+    <div>
+      <b>Status:</b>{' '}
+      <span
+        style={{
+          background: detail.is_suspicious ? '#ef4444' : '#22c55e',
+          color: 'white',
+          padding: '2px 10px',
+          borderRadius: 12,
+        }}
+      >
+        {detail.is_suspicious ? 'Suspicious' : 'Not flagged'}
+      </span>
+    </div>
+    <div><b>From:</b> {detail.source_entity ?? '—'}</div>
+    <div><b>To:</b> {detail.target_entity ?? '—'}</div>
+    <div><b>Amount:</b> {detail.amount ?? '—'}</div>
+    <div><b>Time:</b> {detail.timestamp ?? '—'}</div>
+    <div><b>Reason:</b> {detail.flag_reason ?? 'None'}</div>
+  </div>
+)}
           </div>
         )}
       </div>
