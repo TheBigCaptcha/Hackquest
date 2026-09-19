@@ -63,7 +63,7 @@ def dataset_summary():
     if labels.empty:
         return {
             "loaded": False,
-            "message": "Place elliptic_txs_classes.csv in data/raw/ locally.",
+            "message": "Place elliptic_txs_classes.csv in data/locally.",
         }
 
     counts = labels["class"].value_counts().to_dict()
