@@ -16,7 +16,7 @@ from schemas import (
     Transaction,
 )
 
-DATA_PATH = Path("data/raw/elliptic_txs_classes.csv")
+DATA_PATH = Path("data/elliptic_txs_classes.csv")
 
 app = FastAPI(
     title="Financial Anomaly & Entity Investigation API",
