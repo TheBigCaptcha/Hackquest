@@ -1,13 +1,201 @@
-"""FastAPI entry point."""
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional
 
-from fastapi import FastAPI
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
-app = FastAPI(title="Bitcoin Deanonymization API", description="SIH26146 transaction analysis and investigation prototype", version="0.1.0")
+DATA_PATH = Path("data/raw/elliptic_txs_classes.csv")
 
-@app.get("/health")
-def health() -> dict:
-    return {"status": "ok"}
+app = FastAPI(
+    title="Financial Anomaly & Entity Investigation API",
+    description="Backend bridge connecting Bitcoin/ML analysis outputs to the investigation frontend.",
+    version="1.0.0",
+)
 
-@app.get("/api/transactions/sample")
-def sample_transactions() -> dict:
-    return {"transactions": [], "note": "Replace with the current mock/real transaction service."}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class RiskLevel(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class Transaction(BaseModel):
+    transaction_id: str
+    source_entity: str
+    target_entity: str
+    amount: Optional[float] = None
+    timestamp: Optional[str] = None
+    is_suspicious: bool
+    flag_reason: Optional[str] = None
+
+
+class NetworkNode(BaseModel):
+    id: str
+    label: str
+    node_type: str
+    risk_score: Optional[float] = Field(None, ge=0.0, le=100.0)
+
+
+class NetworkEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    amount: Optional[float] = None
+    weight: float = 0.0
+    is_suspicious: bool = False
+    timestamp: Optional[str] = None
+
+
+class NetworkGraph(BaseModel):
+    nodes: List[NetworkNode]
+    edges: List[NetworkEdge]
+
+
+class EntityMetrics(BaseModel):
+    total_transactions: int
+    suspicious_transactions: int
+    connection_count: int
+
+
+class EntityDetailResponse(BaseModel):
+    entity_id: str
+    entity_type: str
+    risk_score: float = Field(..., ge=0.0, le=100.0)
+    risk_level: RiskLevel
+    relevant_indicators: List[str]
+    metrics: EntityMetrics
+
+
+class SearchResultItem(BaseModel):
+    entity_id: str
+    risk_score: float
+    risk_level: RiskLevel
+
+
+def load_labels() -> pd.DataFrame:
+    if not DATA_PATH.exists():
+        return pd.DataFrame(columns=["txId", "class"])
+    df = pd.read_csv(DATA_PATH)
+    df["txId"] = df["txId"].astype(str)
+    return df
+
+
+def class_to_suspicious(value: str) -> bool:
+    # Elliptic labels: 1 = illicit, 2 = licit, unknown = unlabeled.
+    return str(value) == "1"
+
+
+@app.get("/", tags=["Health Check"])
+def health_check():
+    labels = load_labels()
+    return {
+        "status": "online",
+        "message": "Investigation API is running.",
+        "labels_loaded": not labels.empty,
+        "label_rows": len(labels),
+    }
+
+
+@app.get("/api/dataset/summary", tags=["Dataset"])
+def dataset_summary():
+    labels = load_labels()
+    if labels.empty:
+        return {
+            "loaded": False,
+            "message": "Place elliptic_txs_classes.csv in data/raw/ locally.",
+        }
+
+    counts = labels["class"].value_counts().to_dict()
+    return {
+        "loaded": True,
+        "total_transactions": len(labels),
+        "illicit_labeled": int(counts.get("1", 0)),
+        "licit_labeled": int(counts.get("2", 0)),
+        "unknown": int(counts.get("unknown", 0)),
+    }
+
+
+@app.get("/api/entities/search", response_model=List[SearchResultItem], tags=["Entities"])
+def search_entities(
+    query: str = Query(..., min_length=1, description="Transaction ID search query")
+):
+    labels = load_labels()
+    if labels.empty:
+        return []
+
+    matches = labels[labels["txId"].str.contains(query, case=False, na=False)].head(50)
+    results = []
+    for _, row in matches.iterrows():
+        suspicious = class_to_suspicious(row["class"])
+        results.append(
+            SearchResultItem(
+                entity_id=f"tx_{row['txId']}",
+                risk_score=100.0 if suspicious else 0.0,
+                risk_level=RiskLevel.HIGH if suspicious else RiskLevel.LOW,
+            )
+        )
+    return results
+
+
+@app.get("/api/transactions/{transaction_id}", response_model=Transaction, tags=["Transactions"])
+def get_transaction(transaction_id: str):
+    tx_id = transaction_id.removeprefix("tx_")
+    labels = load_labels()
+    if labels.empty:
+        raise HTTPException(status_code=503, detail="Elliptic labels dataset is not loaded.")
+
+    match = labels[labels["txId"] == tx_id]
+    if match.empty:
+        raise HTTPException(status_code=404, detail=f"Transaction '{transaction_id}' not found.")
+
+    row = match.iloc[0]
+    suspicious = class_to_suspicious(row["class"])
+    return Transaction(
+        transaction_id=tx_id,
+        source_entity="unknown",
+        target_entity="unknown",
+        is_suspicious=suspicious,
+        flag_reason="Elliptic class=1 (illicit label)" if suspicious else None,
+    )
+
+
+@app.get("/api/transactions", tags=["Transactions"])
+def list_transactions(
+    suspicious_only: bool = Query(False),
+    limit: int = Query(50, ge=1, le=500),
+):
+    labels = load_labels()
+    if labels.empty:
+        return []
+
+    if suspicious_only:
+        labels = labels[labels["class"].map(class_to_suspicious)]
+
+    return [
+        {
+            "transaction_id": str(row.txId),
+            "label": str(row["class"]),
+            "is_suspicious": class_to_suspicious(row["class"]),
+        }
+        for row in labels.head(limit).itertuples()
+    ]
+
+
+@app.get("/api/entities/{entity_id}/network", response_model=NetworkGraph, tags=["Graph & Network"])
+def get_entity_network(entity_id: str):
+    raise HTTPException(
+        status_code=501,
+        detail="Graph data is not loaded yet. Add the Elliptic edge list and connect graph_builder.py.",
+    )
