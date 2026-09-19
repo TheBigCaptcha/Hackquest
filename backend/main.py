@@ -1,11 +1,20 @@
-from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+
+from schemas import (
+    EntityDetailResponse,
+    EntityMetrics,
+    NetworkEdge,
+    NetworkGraph,
+    NetworkNode,
+    RiskLevel,
+    SearchResultItem,
+    Transaction,
+)
 
 DATA_PATH = Path("data/raw/elliptic_txs_classes.csv")
 
@@ -22,67 +31,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-class RiskLevel(str, Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    CRITICAL = "CRITICAL"
-    UNASSESSED = "UNASSESSED"
-
-
-class Transaction(BaseModel):
-    transaction_id: str
-    source_entity: str
-    target_entity: str
-    amount: Optional[float] = None
-    timestamp: Optional[str] = None
-    is_suspicious: bool
-    flag_reason: Optional[str] = None
-
-
-class NetworkNode(BaseModel):
-    id: str
-    label: str
-    node_type: str
-    risk_score: Optional[float] = Field(None, ge=0.0, le=100.0)
-
-
-class NetworkEdge(BaseModel):
-    id: str
-    source: str
-    target: str
-    amount: Optional[float] = None
-    weight: float = 0.0
-    is_suspicious: bool = False
-    timestamp: Optional[str] = None
-
-
-class NetworkGraph(BaseModel):
-    nodes: List[NetworkNode]
-    edges: List[NetworkEdge]
-
-
-class EntityMetrics(BaseModel):
-    total_transactions: int
-    suspicious_transactions: int
-    connection_count: int
-
-
-class EntityDetailResponse(BaseModel):
-    entity_id: str
-    entity_type: str
-    risk_score: float = Field(..., ge=0.0, le=100.0)
-    risk_level: RiskLevel
-    relevant_indicators: List[str]
-    metrics: EntityMetrics
-
-
-class SearchResultItem(BaseModel):
-    entity_id: str
-    risk_score: Optional[float] = None
-    risk_level: RiskLevel
 
 
 def load_labels() -> pd.DataFrame:
@@ -128,7 +76,7 @@ def dataset_summary():
     }
 
 
-@app.get("/api/entities/search", response_model=List[SearchResultItem], tags=["Entities"])
+@app.get("/api/entities/search", response_model=list[SearchResultItem], tags=["Entities"])
 def search_entities(
     query: str = Query(..., min_length=1, description="Transaction ID search query")
 ):
@@ -139,7 +87,6 @@ def search_entities(
     matches = labels[labels["txId"].str.contains(query, case=False, na=False)].head(50)
     results = []
     for _, row in matches.iterrows():
-        suspicious = class_to_suspicious(row["class"])
         results.append(
             SearchResultItem(
                 entity_id=f"tx_{row['txId']}",
@@ -194,7 +141,11 @@ def list_transactions(
     ]
 
 
-@app.get("/api/entities/{entity_id}/network", response_model=NetworkGraph, tags=["Graph & Network"])
+@app.get(
+    "/api/entities/{entity_id}/network",
+    response_model=NetworkGraph,
+    tags=["Graph & Network"],
+)
 def get_entity_network(entity_id: str):
     raise HTTPException(
         status_code=501,
