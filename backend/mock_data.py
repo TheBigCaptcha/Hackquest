@@ -1,10 +1,3 @@
-"""Temporary demo fixtures for backend/API development.
-
-These values are synthetic and MUST NOT be treated as real analytical results.
-Replace them with outputs from the ML, graph, clustering, risk, and
-network-correlation pipeline once those modules are implemented.
-"""
-
 MOCK_ENTITIES = {
     "cluster_123": {
         "entity_id": "cluster_123",
